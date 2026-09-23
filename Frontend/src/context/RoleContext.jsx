@@ -11,6 +11,7 @@ export const ROLES = {
   admin:     { label: 'Admin',     color: '#E8521A', bg: '#FDE7DA' },
   manager:   { label: 'Manager',   color: '#1B5E35', bg: '#E8F5EE' },
   executive: { label: 'Executive', color: '#3B82F6', bg: '#DBEAFE' },
+  rider:     { label: 'Rider',     color: '#7C3AED', bg: '#EDE9FE' },
 }
 
 // Returns true for connection-level failures that have no HTTP status

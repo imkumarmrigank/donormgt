@@ -12,6 +12,9 @@ const PAGE_META = {
   pickupoverview:  { title: 'Pickup Overview',        sub: 'Individual & drive analytics - admin view' },
   raddimaster:     { title: 'Raddi Master',           sub: 'Complete pickup data - all orders in one view' },
   sksoverview:     { title: 'SKS Stock',              sub: 'Warehouse tracking for donated goods' },
+  riderpickups:    { title: 'My Pickups',             sub: 'Mark each visit from the pickup location' },
+  ridervisits:     { title: 'Rider Visits',           sub: 'Location-checked visits and outcomes' },
+  usermanagement:  { title: 'User Management',        sub: 'Logins and roles' },
 }
 
 export default function Header({ page, onMenuClick, user, role, onLogout }) {

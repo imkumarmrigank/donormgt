@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useApp }      from '../context/AppContext'
 import DonorModal      from '../components/DonorModal'
+import PickupLocationField from '../components/PickupLocationField'
 import { fmtDate }     from '../utils/helpers'
 import * as api        from '../services/api'
 
@@ -102,6 +103,9 @@ export default function PickupScheduler({ onNav }) {
   const [timeSlot,   setTimeSlot]   = useState('')
   const [pickupMode, setPickupMode] = useState('Individual')
   const [notes,      setNotes]      = useState('')
+  const [riderId,    setRiderId]    = useState('')
+  const [geo,        setGeo]        = useState(null)
+  const [riders,     setRiders]     = useState([])
   const [saving,     setSaving]     = useState(false)
   const [formError,  setFormError]  = useState('')
   const [showDonorModal, setDonorModal] = useState(false)
@@ -112,6 +116,12 @@ export default function PickupScheduler({ onNav }) {
   // reliable than client-side when the local pickups list is stale/partial).
   const [serverConflict, setServerConflict] = useState(null)
   const [checkingConflict, setCheckingConflict] = useState(false)
+
+  useEffect(() => {
+    api.fetchUsers({ role: 'rider', limit: 500 })
+      .then(list => setRiders((Array.isArray(list) ? list : []).filter(u => u.active !== false)))
+      .catch(() => setRiders([]))
+  }, [])
 
   const activeDonors = useMemo(() => donors.filter(d => d.status !== 'Lost'), [donors])
 
@@ -157,7 +167,16 @@ export default function PickupScheduler({ onNav }) {
     setTimeSlot(state.timeSlot || existing.timeSlot || '')
     setPickupMode(state.pickupMode || existing.pickupMode || 'Individual')
     setNotes(state.notes || existing.notes || '')
+    setRiderId(existing.riderId || '')
+    setGeo(existing.geo || null)
   }, [state, pickups])
+
+  // Picking a donor pre-fills the pin saved from their earlier pickups.
+  const selectDonor = (id) => {
+    setSelectedDonorId(id)
+    const donor = donors.find(d => d.id === id)
+    setGeo(donor?.geo || null)
+  }
 
   const handleModeChange = (mode) => { setPickupMode(mode); setTimeSlot('') }
 
@@ -165,7 +184,7 @@ export default function PickupScheduler({ onNav }) {
     // If donorData has an id, DonorModal detected an existing donor/supporter.
     // Auto-select them without calling addDonor (which would create a duplicate).
     if (donorData?.id) {
-      setSelectedDonorId(donorData.id)
+      selectDonor(donorData.id)
       setDonorModal(false)
       setToast(`✓ ${donorData.name} selected`)
       return
@@ -173,6 +192,7 @@ export default function PickupScheduler({ onNav }) {
     // New donor path: create then select
     const newDonor = await addDonor(donorData)
     setSelectedDonorId(newDonor.id)
+    setGeo(null)
     setDonorModal(false)
     setToast(`✓ ${newDonor.name} added and selected`)
   }
@@ -203,13 +223,15 @@ export default function PickupScheduler({ onNav }) {
         sector:  donor.sector || '', city: donor.city || '',
         date, timeSlot, pickupMode, notes,
         status: 'Pending',
+        riderId: riderId || null,
+        geo: geo || null,
       }
       if (targetPickupId) {
         await updatePickup(targetPickupId, payload)
       } else {
         await schedulePickup(payload)
       }
-      setSelectedDonorId(''); setDate(''); setTimeSlot(''); setNotes('')
+      setSelectedDonorId(''); setDate(''); setTimeSlot(''); setNotes(''); setRiderId(''); setGeo(null)
       setTargetPickupId(null)
       setConflictDismissed(false)
       setServerConflict(null)
@@ -236,7 +258,7 @@ export default function PickupScheduler({ onNav }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="form-group" style={{ margin: 0 }}>
                 <label>Donor <span className="required">*</span></label>
-                <DonorDropdown donors={activeDonors} value={selectedDonorId} onChange={id => { setSelectedDonorId(id); setFormError(''); setConflictDismissed(false); setServerConflict(null) }} onAddNew={() => setDonorModal(true)} />
+                <DonorDropdown donors={activeDonors} value={selectedDonorId} onChange={id => { selectDonor(id); setFormError(''); setConflictDismissed(false); setServerConflict(null) }} onAddNew={() => setDonorModal(true)} />
               </div>
 
               {donorDetails && (
@@ -275,6 +297,23 @@ export default function PickupScheduler({ onNav }) {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <PickupLocationField
+                value={geo}
+                onChange={setGeo}
+                savedFromDonor={Boolean(geo && donorDetails?.geo && geo.lat === donorDetails.geo.lat && geo.lng === donorDetails.geo.lng)}
+              />
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Rider <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400, marginLeft: 4 }}>(sees this pickup in the rider app)</span></label>
+                <select value={riderId} onChange={e => setRiderId(e.target.value)}>
+                  <option value="">Not assigned</option>
+                  {riders.map(r => <option key={r.id || r.uid} value={r.id || r.uid}>{r.name || r.email}</option>)}
+                </select>
+                {riders.length === 0 && (
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 4 }}>No riders yet. Add a user with the Rider role in User Management.</div>
+                )}
               </div>
 
               <div className="form-group" style={{ margin: 0 }}>

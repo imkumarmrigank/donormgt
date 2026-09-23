@@ -1,4 +1,5 @@
 const pickupService = require("../services/pickup.service");
+const visitService = require("../services/visit.service");
 const { asyncHandler } = require("../utils/asyncHandler");
 const { sendSuccess } = require("../utils/response");
 
@@ -18,12 +19,16 @@ const get = asyncHandler(async (req, res) => {
 });
 
 const create = asyncHandler(async (req, res) => {
+  await visitService.prepareAssignment(req.body, req.user);
   const data = await pickupService.createPickup(req.body, req.user);
+  await visitService.rememberDonorGeo(data.donorId, req.body.geo);
   sendSuccess(res, data, "Pickup created", 201);
 });
 
 const update = asyncHandler(async (req, res) => {
+  await visitService.prepareAssignment(req.body, req.user);
   const data = await pickupService.updatePickup(req.params.id, req.body, req.user);
+  await visitService.rememberDonorGeo(data.donorId, req.body.geo);
   sendSuccess(res, data, "Pickup updated");
 });
 

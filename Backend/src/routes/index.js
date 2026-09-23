@@ -11,6 +11,8 @@ const uploadRoutes = require("./upload.routes");
 const locationRoutes = require("./location.routes");
 const masterDataRoutes = require("./masterData.routes");
 const setupRoutes = require("./setup.routes");
+const riderRoutes = require("./rider.routes");
+const visitRoutes = require("./visit.routes");
 
 const router = Router();
 
@@ -30,6 +32,8 @@ router.use("/dashboard", dashboardRoutes);
 router.use("/uploads", uploadRoutes);
 router.use("/locations", locationRoutes);
 router.use("/master-data", masterDataRoutes);
+router.use("/rider", riderRoutes);
+router.use("/visits", visitRoutes);
 
 module.exports = router;
 

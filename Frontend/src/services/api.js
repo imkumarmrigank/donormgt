@@ -437,6 +437,18 @@ export const fetchDashboardStats = (params, options) =>
   apiFetch(`/dashboard/stats${toQuery(params)}`, options)
 export const fetchSchedulerSummary = options => apiFetch('/dashboard/scheduler', options)
 
+// Riders & visits
+export const fetchRiderPickups = options => apiFetch('/rider/pickups', { cacheTtl: 0, ...options })
+export const fetchRiderOutcomes = options => apiFetch('/rider/outcomes', options)
+export const recordRiderVisit = (pickupId, data) =>
+  apiFetch(`/rider/pickups/${pickupId}/visits`, { method: 'POST', body: JSON.stringify(data), retry: 0 })
+export const fetchVisits = (params, options) => apiFetch(`/visits${toQuery(params)}`, { cacheTtl: 0, ...options })
+export const fetchVisitOutcomes = options => apiFetch('/visits/outcomes', { cacheTtl: 0, ...options })
+export const createVisitOutcome = data =>
+  apiFetch('/visits/outcomes', { method: 'POST', body: JSON.stringify(data) })
+export const updateVisitOutcome = (id, data) =>
+  apiFetch(`/visits/outcomes/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+
 // Uploads
 export const createReadSignedUrl = storagePath =>
   apiFetch('/uploads/read-url', { method: 'POST', body: JSON.stringify({ storagePath }) })

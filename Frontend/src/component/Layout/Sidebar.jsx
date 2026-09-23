@@ -2,7 +2,7 @@
 import {
   LayoutDashboard, Users, Truck, UserCheck, BarChart3,
   IndianRupee, CalendarDays, Table2, Eye, Shirt, ClipboardList,
-  Heart, Database, Shield,
+  Heart, Database, Shield, MapPinned,
 } from 'lucide-react'
 import { useRole } from '../../context/RoleContext'
 
@@ -12,6 +12,13 @@ const buildNav = (role) => {
   const isAdmin     = role === 'admin'
   const isManager   = role === 'manager'
   const isExecutive = role === 'executive'
+
+  if (role === 'rider') {
+    return [
+      { section: 'Rider' },
+      { id: 'riderpickups', label: 'My Pickups', icon: MapPinned },
+    ]
+  }
 
   // Executive sees limited navigation
   if (isExecutive) {
@@ -47,6 +54,7 @@ const buildNav = (role) => {
       : []
     ),
     { id: 'todaypickups',    label: "Today's Pickups",  icon: ClipboardList },
+    { id: 'ridervisits',     label: 'Rider Visits',     icon: MapPinned },
 
     { section: 'Warehouse' },
     ...(isAdmin || isManager

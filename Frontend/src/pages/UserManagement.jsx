@@ -16,6 +16,7 @@ const ROLE_BADGES = {
   admin:     { label: 'Admin',     bg: '#FDE7DA', color: '#E8521A', border: '#FDCFB0' },
   manager:   { label: 'Manager',   bg: '#E8F5EE', color: '#1B5E35', border: '#B7DFCA' },
   executive: { label: 'Executive', bg: '#DBEAFE', color: '#3B82F6', border: '#BFDBFE' },
+  rider:     { label: 'Rider',     bg: '#EDE9FE', color: '#7C3AED', border: '#DDD6FE' },
 }
 
 function userId(user) {
@@ -352,6 +353,7 @@ export default function UserManagement() {
               <option value="admin">Admin</option>
               <option value="manager">Manager</option>
               <option value="executive">Executive</option>
+              <option value="rider">Rider</option>
             </select>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ fontSize: 12, minWidth: 0, width: '100%', height: 32, padding: '4px 6px' }}>
               <option value="">All Status</option>
@@ -555,6 +557,7 @@ export default function UserManagement() {
                   <label>Role <span className="required">*</span></label>
                   <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
                     <option value="executive">Executive</option>
+              <option value="rider">Rider</option>
                     <option value="manager">Manager</option>
                     <option value="admin">Admin</option>
                   </select>

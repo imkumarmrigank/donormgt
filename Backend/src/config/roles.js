@@ -1,7 +1,9 @@
 const ROLES = Object.freeze({
   ADMIN: "admin",
   MANAGER: "manager",
-  EXECUTIVE: "executive"
+  EXECUTIVE: "executive",
+  // Field staff: sees only pickups assigned to them and records visits there.
+  RIDER: "rider"
 });
 
 const ROLE_VALUES = Object.values(ROLES);

@@ -14,7 +14,9 @@ const COLLECTIONS = {
   SECTORS: "sectors",
   SOCIETIES: "societies",
   COUNTERS: "counters",
-  SYSTEM_CONFIG: "systemConfig"
+  SYSTEM_CONFIG: "systemConfig",
+  PICKUP_VISITS: "pickupVisits",
+  VISIT_OUTCOMES: "visitOutcomes"
 };
 
 module.exports = { COLLECTIONS };

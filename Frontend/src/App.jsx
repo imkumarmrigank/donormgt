@@ -53,6 +53,8 @@ import PickupOverview  from './pages/PickupOverview'
 import RaddiMaster     from './pages/RaddiMaster'
 import SKSOverview     from './pages/SKSOverview'
 import UserManagement  from './pages/UserManagement'
+import RiderPickups    from './pages/RiderPickups'
+import RiderVisits     from './pages/RiderVisits'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Page-ID ↔ URL path mappings
@@ -71,6 +73,8 @@ const PAGE_TO_PATH = {
   raddimaster:     '/raddi-master',
   sksoverview:     '/sks-overview',
   usermanagement:  '/user-management',
+  riderpickups:    '/rider',
+  ridervisits:     '/rider-visits',
 }
 
 /** Reverse map: URL path → page ID (used to set the sidebar active item) */
@@ -91,6 +95,7 @@ const useNav = () => useContext(NavContext)
 const ADMIN         = ['admin']
 const ADMIN_MANAGER = ['admin', 'manager']
 const ALL_ROLES     = ['admin', 'manager', 'executive']
+const RIDER         = ['rider']
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AppShell — the authenticated layout wrapper.
@@ -106,7 +111,7 @@ function AppShell() {
   const [addDonor,    setAddDonor]    = useState(false)
 
   // Derive current page ID from the URL so Sidebar can highlight it.
-  const currentPage = PATH_TO_PAGE[pathname] ?? (role === 'executive' ? 'todaypickups' : 'dashboard')
+  const currentPage = PATH_TO_PAGE[pathname] ?? (role === 'executive' ? 'todaypickups' : role === 'rider' ? 'riderpickups' : 'dashboard')
   const homePath    = ROLE_HOME[role] || '/today-pickups'
 
   /**
@@ -364,6 +369,16 @@ function AppRoutes() {
         <Route
           path="/pickup-overview"
           element={<Guard roles={ADMIN_MANAGER}><PickupOverviewPage /></Guard>}
+        />
+        <Route
+          path="/rider-visits"
+          element={<Guard roles={ADMIN_MANAGER}><RiderVisits /></Guard>}
+        />
+
+        {/* ── Rider ── */}
+        <Route
+          path="/rider"
+          element={<Guard roles={RIDER}><RiderPickups /></Guard>}
         />
 
         {/* ── Admin only ── */}

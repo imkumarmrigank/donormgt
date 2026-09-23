@@ -10,6 +10,7 @@ export const ROLE_HOME = {
   admin:     '/dashboard',
   manager:   '/dashboard',
   executive: '/today-pickups',
+  rider:     '/rider',
 }
 
 // Which roles may access each protected path
@@ -27,6 +28,8 @@ const ROUTE_PERMISSIONS = {
   '/pickup-partners':  ['admin', 'manager', 'executive'],
   '/sks-overview':     ['admin', 'manager', 'executive'],
   '/today-pickups':    ['admin', 'manager', 'executive'],
+  '/rider-visits':     ['admin', 'manager'],
+  '/rider':            ['rider'],
 }
 
 /**

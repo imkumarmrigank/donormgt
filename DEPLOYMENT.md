@@ -64,3 +64,19 @@ Checks: `npm --prefix Backend run check` (syntax) and `npm --prefix Backend run 
 
 Seed data (safe to re-run): `npm --prefix Backend run seed:master` (RST/SKS items),
 `npm --prefix Backend run seed:locations` (cities, sectors, societies).
+
+## Riders and location-checked visits
+
+- **Rider** is a user role (create in User Management). Riders sign in to "My Pickups" only;
+  every other API returns 403 for them (`RIDER_API_ROOTS` in `middleware/auth.js`).
+- Pickup Scheduler sets a **pickup pin** (this device's GPS, or pasted coordinates / a Google
+  Maps link with coordinates) and the **rider**. The pin is saved on the donor and pre-filled next time.
+- At the door the rider records a **visit**: an outcome, the phone's GPS fix, photos of the goods.
+  Within 100 m of the pin → verified. Farther → the rider must give a reason and the visit is
+  flagged; also flagged when the pickup has no pin or the GPS accuracy is worse than 100 m.
+  Rules live in `services/visit.service.js` (`MAX_DISTANCE_METERS`, `MAX_ACCURACY_METERS`).
+- Visits are stored in `pickupVisits`; the pickup keeps `lastVisit` and `visitCount`.
+- **Rider Visits** (admin, manager) lists visits with flags, maps, photos. Admins edit the
+  outcome list there: photo required or not, and an optional pickup status the outcome sets
+  (Pending / Postponed / Did Not Open Door). Completing a pickup still goes through Record Pickup.
+- Browsers only share GPS over HTTPS (fine on the live site; `localhost` also works).

@@ -1,4 +1,6 @@
 const { db } = require("../config/firebase");
+const { env } = require("../config/env");
+const { ROLES } = require("../config/roles");
 const { COLLECTIONS } = require("../config/collections");
 const { AppError } = require("../utils/AppError");
 const { cache } = require("../utils/cache");
@@ -6,6 +8,10 @@ const accounts = require("../services/account.store");
 const tokens = require("../services/token.service");
 
 const AUTH_PROFILE_TTL_SECONDS = 60;
+
+// Riders only reach their own screens; every other API (donor lists, payments,
+// partners) stays closed to them even where a route has no role check.
+const RIDER_API_ROOTS = ["/auth", "/rider", "/uploads"].map((root) => `${env.apiPrefix}${root}`);
 
 /**
  * Verifies the Bearer access token and attaches { uid, email, name, role } to req.user.
@@ -46,6 +52,10 @@ async function requireAuth(req, _res, next) {
       role: String(state.profile?.role || decoded.role || "").toLowerCase(),
       claims: decoded
     };
+
+    if (req.user.role === ROLES.RIDER && !RIDER_API_ROOTS.includes(req.baseUrl)) {
+      throw new AppError("Riders can only use the rider app.", 403, "FORBIDDEN");
+    }
     next();
   } catch (error) {
     next(error instanceof AppError

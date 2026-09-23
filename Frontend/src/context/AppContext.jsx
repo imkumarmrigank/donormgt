@@ -198,48 +198,50 @@ export function AppProvider({ children }) {
   const [error, setError] = useState("");
 
   const canReadReports = role === "admin" || role === "manager";
+  // Riders use their own screen and API; the office data below is closed to them.
+  const loadsOfficeData = Boolean(role) && role !== "rider";
 
   const coreQueries = useQueries({
     queries: [
       {
         queryKey: queryKeys.donors({ limit: CORE_LIMITS.donors }),
         queryFn: () => api.fetchDonors({ limit: CORE_LIMITS.donors }),
-        enabled: Boolean(role),
+        enabled: loadsOfficeData,
       },
       {
         queryKey: queryKeys.pickups({ limit: CORE_LIMITS.pickups }),
         queryFn: () => api.fetchPickups({ limit: CORE_LIMITS.pickups }),
-        enabled: Boolean(role),
+        enabled: loadsOfficeData,
       },
       {
         queryKey: queryKeys.pickupPartners({ limit: CORE_LIMITS.partners }),
         queryFn: () => api.fetchPickupPartners({ limit: CORE_LIMITS.partners }),
-        enabled: Boolean(role),
+        enabled: loadsOfficeData,
       },
       {
         queryKey: queryKeys.sksInflows({ limit: CORE_LIMITS.sks }),
         queryFn: () => api.fetchSksInflows({ limit: CORE_LIMITS.sks }),
-        enabled: Boolean(role),
+        enabled: loadsOfficeData,
       },
       {
         queryKey: queryKeys.sksOutflows({ limit: CORE_LIMITS.sks }),
         queryFn: () => api.fetchSksOutflows({ limit: CORE_LIMITS.sks }),
-        enabled: Boolean(role),
+        enabled: loadsOfficeData,
       },
       {
         queryKey: queryKeys.sksStock(),
         queryFn: () => api.fetchSksStock(),
-        enabled: Boolean(role),
+        enabled: loadsOfficeData,
       },
       {
         queryKey: queryKeys.masterData(),
         queryFn: () => api.fetchMasterData(),
-        enabled: Boolean(role),
+        enabled: loadsOfficeData,
       },
       {
         queryKey: queryKeys.locations(),
         queryFn: () => api.fetchLocations(),
-        enabled: Boolean(role),
+        enabled: loadsOfficeData,
       },
       {
         queryKey: queryKeys.dashboardStats({ limit: 100 }),
