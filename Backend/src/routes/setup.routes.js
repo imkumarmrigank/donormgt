@@ -6,7 +6,9 @@ const { z } = require("../validators/common.validators");
 const setupFirstAdminSchema = z.object({
   body: z.object({
     setupSecret: z.string().min(1, "setupSecret is required"),
-    uid: z.string().min(1, "uid is required")
+    email: z.string().email(),
+    password: z.string().min(6).optional(),
+    name: z.string().optional()
   })
 });
 

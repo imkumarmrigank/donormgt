@@ -126,6 +126,7 @@ export default function UserManagement() {
     mutationFn: async ({ editingUser, formData }) => {
       if (editingUser) {
         const patch = { name: formData.name, phone: formData.phone, role: formData.role, active: formData.active }
+        if (formData.password?.trim()) patch.password = formData.password
         return api.updateUser(userId(editingUser), patch)
       }
       return api.createUser(formData)
@@ -191,7 +192,7 @@ export default function UserManagement() {
     if (!form.name?.trim()) { setError('Name is required'); return }
     if (!form.email?.trim()) { setError('Email is required'); return }
     if (!editing && !form.password?.trim()) { setError('Password is required for new users'); return }
-    if (!editing && form.password.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (form.password && form.password.length < 6) { setError('Password must be at least 6 characters'); return }
 
     setSaving(true); setError('')
     try {
@@ -533,9 +534,9 @@ export default function UserManagement() {
                 <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="user@freepathshala.com" disabled={!!editing} style={{ opacity: editing ? 0.6 : 1 }} />
               </div>
 
-              {!editing && (
+              {(
                 <div className="form-group">
-                  <label>Password <span className="required">*</span></label>
+                  <label>{editing ? <>Reset Password <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>(leave blank to keep current)</span></> : <>Password <span className="required">*</span></>}</label>
                   <div style={{ position: 'relative' }}>
                     <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Min 6 characters" style={{ paddingRight: 36 }} />
                     <button type="button" onClick={() => setShowPassword(s => !s)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2 }}>

@@ -438,33 +438,21 @@ export const fetchDashboardStats = (params, options) =>
 export const fetchSchedulerSummary = options => apiFetch('/dashboard/scheduler', options)
 
 // Uploads
-export const createUploadSignedUrl = data =>
-  apiFetch('/uploads/signed-url', { method: 'POST', body: JSON.stringify(data) })
-
 export const createReadSignedUrl = storagePath =>
   apiFetch('/uploads/read-url', { method: 'POST', body: JSON.stringify({ storagePath }) })
 
+// Files go to the backend, which stores them in Cloudinary and returns a signed URL.
 export async function uploadFileViaSignedUrl(file, { purpose = 'general', entityId = 'general' } = {}) {
-  const upload = await createUploadSignedUrl({
-    fileName: file.name,
-    contentType: file.type || 'application/octet-stream',
-    purpose,
-    entityId,
-  })
+  const formData = new FormData()
+  formData.append('purpose', purpose)
+  formData.append('entityId', entityId)
+  formData.append('file', file)
 
-  const response = await fetch(upload.signedUrl, {
-    method: upload.method || 'PUT',
-    headers: { 'Content-Type': upload.contentType },
-    body: file,
-  })
-
-  if (!response.ok) throw new Error(`File upload failed (${response.status})`)
-
-  const read = await createReadSignedUrl(upload.storagePath)
+  const uploaded = await apiFetch('/uploads', { method: 'POST', body: formData, timeoutMs: 60_000, retry: 0 })
   return {
-    storagePath: upload.storagePath,
-    url: read.signedUrl,
-    contentType: upload.contentType,
+    storagePath: uploaded.storagePath,
+    url: uploaded.url,
+    contentType: uploaded.contentType,
     fileName: file.name,
   }
 }

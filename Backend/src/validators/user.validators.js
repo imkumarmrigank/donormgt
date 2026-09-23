@@ -21,6 +21,7 @@ const updateUserSchema = z.object({
     role: role.optional(),
     phone: optionalString,
     active: z.boolean().optional(),
+    password: z.string().min(6).optional(),
     aadhaarDocument: z.any().optional()
   }).passthrough()
 });

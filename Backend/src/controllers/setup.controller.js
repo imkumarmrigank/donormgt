@@ -13,9 +13,9 @@ const status = asyncHandler(async (_req, res) => {
 
 /**
  * POST /api/v1/setup/first-admin
- * Public — one-time endpoint to promote a Firebase Auth user to admin.
+ * Public — one-time endpoint to create (or promote) the first admin.
  *
- * Body: { setupSecret: string, uid: string }
+ * Body: { setupSecret, email, password?, name? }
  */
 const firstAdmin = asyncHandler(async (req, res) => {
   const data = await setupService.setupFirstAdmin(req.body);

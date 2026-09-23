@@ -3,11 +3,6 @@ const { asyncHandler } = require("../utils/asyncHandler");
 const { sendSuccess } = require("../utils/response");
 const { AppError } = require("../utils/AppError");
 
-const createUploadUrl = asyncHandler(async (req, res) => {
-  const data = await storageService.createWriteSignedUrl(req.body);
-  sendSuccess(res, data, "Signed upload URL created", 201);
-});
-
 const createReadUrl = asyncHandler(async (req, res) => {
   const data = await storageService.createReadSignedUrl(req.body.storagePath);
   sendSuccess(res, data, "Signed read URL created");
@@ -27,8 +22,13 @@ const uploadFile = asyncHandler(async (req, res) => {
   sendSuccess(res, data, "File uploaded", 201);
 });
 
+const viewFile = asyncHandler(async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.redirect(302, storageService.resolveViewToken(req.params.token));
+});
+
 module.exports = {
-  createUploadUrl,
+  viewFile,
   createReadUrl,
   uploadFile
 };

@@ -1,4 +1,5 @@
-const { auth, db } = require("../config/firebase");
+const { db } = require("../config/firebase");
+const accounts = require("./account.store");
 const { COLLECTIONS } = require("../config/collections");
 const { logger } = require("../config/logger");
 const { AppError } = require("../utils/AppError");
@@ -35,42 +36,31 @@ async function getUser(id) {
 async function createUser(data, actor) {
   let uid = data.firebaseUid;
 
-  if (!uid) {
-    if (!data.password) {
-      throw new AppError("Password is required when creating a Firebase Auth user", 422, "PASSWORD_REQUIRED");
+  if (uid) {
+    if (!(await accounts.findByUid(uid))) {
+      throw new AppError("No login account exists for that id", 404, "USER_NOT_FOUND");
     }
-
-    // Clean phone number - only pass if non-empty after trim
-    const cleanPhone = data.phone ? String(data.phone).trim() : '';
-    
-    const createUserData = {
+  } else {
+    if (!data.password) {
+      throw new AppError("Password is required when creating a user", 422, "PASSWORD_REQUIRED");
+    }
+    const account = await accounts.createAccount({
       email: data.email,
       password: data.password,
-      displayName: data.name,
       disabled: data.active === false
-    };
-    
-    // Only add phone if it's not empty
-    if (cleanPhone) {
-      createUserData.phoneNumber = cleanPhone;
-    }
-
-    const userRecord = await auth.createUser(createUserData);
-    uid = userRecord.uid;
+    });
+    uid = account.uid;
   }
-
-  const roleToAssign = data.role || "executive";
-  await auth.setCustomUserClaims(uid, { role: roleToAssign });
 
   const cleanPhone = data.phone ? String(data.phone).trim() : '';
 
   const payload = {
     id: uid,
     uid,
-    email: data.email,
+    email: accounts.normalizeEmail(data.email),
     name: data.name,
     phone: cleanPhone,
-    role: roleToAssign,
+    role: data.role || "executive",
     active: data.active !== false,
     ...auditCreate(actor)
   };
@@ -86,38 +76,37 @@ async function updateUser(id, data, actor) {
   const existing = await ref.get();
   if (!existing.exists) throw new AppError("User not found", 404, "USER_NOT_FOUND");
 
-  const authPatch = {};
-  if (data.name) authPatch.displayName = data.name;
-  
-  // Clean phone number
-  const cleanPhone = data.phone ? String(data.phone).trim() : '';
-  if (cleanPhone) {
-    authPatch.phoneNumber = cleanPhone;
+  // Credentials never go into the profile document.
+  const { password, firebaseUid: _ignored, ...profilePatch } = data;
+
+  if (profilePatch.email) profilePatch.email = accounts.normalizeEmail(profilePatch.email);
+  await accounts.updateAccount(id, {
+    email: profilePatch.email || undefined,
+    disabled: typeof profilePatch.active === "boolean" ? !profilePatch.active : undefined
+  });
+  if (password) {
+    // Admin password reset from User Management.
+    await accounts.setPassword(id, password);
   }
-  
-  if (typeof data.active === "boolean") authPatch.disabled = !data.active;
-  if (Object.keys(authPatch).length) await auth.updateUser(id, authPatch);
-  if (data.role) {
-    logger.info("Updating user role", { uid: id, role: data.role, actor: actor?.email || "system" });
-    await auth.setCustomUserClaims(id, { role: data.role });
+  if (profilePatch.role) {
+    logger.info("Updating user role", { uid: id, role: profilePatch.role, actor: actor?.email || "system" });
   }
+
+  const cleanPhone = profilePatch.phone ? String(profilePatch.phone).trim() : '';
 
   // Do not overwrite role with default. Role changes only if explicitly passed.
-  const updatePayload = {
-    ...data,
+  await ref.update({
+    ...profilePatch,
     phone: cleanPhone,
     ...auditUpdate(actor)
-  };
-
-  // We use update() instead of set(..., {merge: true}) to avoid overwriting documents accidentally
-  await ref.update(updatePayload);
+  });
   cache.invalidate(`auth:user:${id}`);
 
   return getUser(id);
 }
 
 async function deleteUser(id) {
-  // 1. Prevent deletion of the last remaining admin
+  // Prevent deletion of the last remaining admin
   const userToDelete = await getUser(id);
   if (userToDelete.role === "admin") {
     const adminsSnapshot = await usersCollection().where("role", "==", "admin").where("active", "==", true).get();
@@ -126,16 +115,7 @@ async function deleteUser(id) {
     }
   }
 
-  // 2. Delete Auth & Firestore safely (sync)
-  try {
-    await auth.deleteUser(id);
-  } catch (err) {
-    // If the user is already deleted from Auth, we still want to delete from Firestore
-    if (err.code !== "auth/user-not-found") {
-      throw new AppError("Failed to delete user from Firebase Auth", 500, "AUTH_DELETE_FAILED");
-    }
-  }
-  
+  await accounts.deleteAccount(id);
   await usersCollection().doc(id).delete();
   cache.invalidate(`auth:user:${id}`);
 

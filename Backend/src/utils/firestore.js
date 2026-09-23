@@ -1,19 +1,19 @@
-const { admin } = require("../config/firebase");
+const { FieldValue } = require("../db/docstore");
 
 function nowIso() {
   return new Date().toISOString();
 }
 
 function serverTimestamp() {
-  return admin.firestore.FieldValue.serverTimestamp();
+  return FieldValue.serverTimestamp();
 }
 
 function increment(amount) {
-  return admin.firestore.FieldValue.increment(amount);
+  return FieldValue.increment(amount);
 }
 
 function arrayUnion(value) {
-  return admin.firestore.FieldValue.arrayUnion(value);
+  return FieldValue.arrayUnion(value);
 }
 
 function isTimestamp(value) {

@@ -1,121 +1,66 @@
-# FreePathshala Firebase Setup and Deployment
+# FreePathshala Donor Manager — Setup and Deployment
 
-## 1. Create Firebase Project
+One Node service: Express serves the API at `/api/v1` and the built React app from
+`Frontend/dist`. Data lives in Neon Postgres; uploaded files live in Cloudinary.
 
-1. Open the Firebase Console and create a project.
-2. Enable Firestore in production mode.
-3. Enable Authentication > Sign-in method > Email/Password.
-4. Enable Storage.
-5. Install Firebase CLI and login:
+- Live: https://donormgt.onrender.com (Render service `donormgt`, auto-deploys on push to `main`)
+- Repo: https://github.com/imkumarmrigank/donormgt
 
-```bash
-npm install -g firebase-tools
-firebase login
-firebase use --add
-```
+## Render
 
-## 2. Backend Environment
+| Setting | Value |
+| --- | --- |
+| Build command | `npm ci && npm run build` |
+| Start command | `npm run migrate && npm start` |
 
-Create `Backend/.env` from `Backend/.env.example`.
+Environment variables (set in the Render dashboard, never in the repo):
+`NODE_ENV=production`, `DATABASE_URL`, `JWT_SECRET`, `CLOUDINARY_URL`, `CLOUDINARY_FOLDER`,
+`ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`, `ADMIN_SETUP_SECRET`, `CORS_ORIGINS`.
+See `Backend/.env.example` for what each one does.
 
-Required values:
+On every boot `npm run migrate` applies any new file in `Backend/db/migrations/` once
+(tracked in `schema_migrations`). If no admin exists yet, one is created from
+`ADMIN_EMAIL`/`ADMIN_PASSWORD`; after that, manage users from User Management.
 
-```bash
-NODE_ENV=production
-API_PREFIX=/api/v1
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
-FIREBASE_WEB_API_KEY=your-web-api-key
-FUNCTION_REGION=asia-south1
-CORS_ORIGINS=https://your-hosting-domain.web.app
-```
+## Database
 
-For local development, use either `GOOGLE_APPLICATION_CREDENTIALS` pointing to a Firebase Admin SDK service account JSON, or the base64 service-account env var. Never commit service-account files.
+`documents` holds every record, one row per document, keyed by
+`(collection_path, id)` with the body in `data jsonb` — `donors`, `pickups`,
+`pickupPartners`, `payments`, `pickups/<id>/paymentLinks`, `dailyAggregates`, `sksInflows`,
+`sksOutflows`, `rstItems`, `sksItems`, `cities`, `sectors`, `societies`, `counters`,
+`users`, `systemConfig`. Views named `v_<collection>` (e.g. `v_donors`, `v_pickup_partners`)
+show one collection each in the Neon SQL editor.
 
-## 3. Create First Admin
+`src/db/docstore.js` gives the services a Firestore-style API over that table (the app
+started on Firestore). Writes go through the `doc_write()` SQL function in one round trip.
 
-Create an Email/Password user in Firebase Auth, then set a custom claim from a trusted environment:
+`auth_accounts` holds logins: bcrypt password hashes and a `token_version` that signs out
+all sessions when bumped (logout, password change, deactivation).
 
-```js
-await admin.auth().setCustomUserClaims(uid, { role: "admin" })
-```
+## Files
 
-After the user signs in again, the backend will enforce `admin`, `manager`, or `executive` from the ID token.
+Uploads are Cloudinary "authenticated" assets under `CLOUDINARY_FOLDER`, readable only
+through signed URLs. PDFs are opened through `/api/v1/uploads/view/<token>`, which redirects
+to a 10-minute Cloudinary download link (the account blocks PDF delivery from its CDN).
 
-## 4. Firestore Collections
+## Passwords
 
-The backend writes these collections:
+There is no outbound email, so "Forgot password" tells users to ask an admin. Admins set a
+new password in User Management → Edit user → Reset Password.
 
-- `users`
-- `donors`
-- `pickupPartners`
-- `pickups`
-- `pickups/{pickupId}/payments`
-- `sksInflows`
-- `sksOutflows`
-- `cities`
-- `sectors`
-- `societies`
-- `counters`
-
-Location collections grow automatically when donors, pickups, or partners are created/updated with new city, sector, or society values.
-
-## 5. Local Verification
-
-Install dependencies:
+## Local development
 
 ```bash
+cp Backend/.env.example Backend/.env   # fill in DATABASE_URL etc.
 npm --prefix Backend install
 npm --prefix Frontend install
+npm run migrate
+npm run dev:api     # API on :5001
+npm run dev:web     # Vite on :5173, proxies /api to :5001
 ```
 
-Run checks:
+Checks: `npm --prefix Backend run check` (syntax) and `npm --prefix Backend run test:docstore`
+(document-store behaviour; writes only to `zz_test_*` collections and cleans up).
 
-```bash
-npm --prefix Backend run check
-npm --prefix Frontend run build
-```
-
-Run locally:
-
-```bash
-npm --prefix Backend run dev
-npm --prefix Frontend run dev
-```
-
-Set `Frontend/.env`:
-
-```bash
-VITE_API_BASE_URL=http://localhost:5001/api/v1
-```
-
-Verify:
-
-1. Login succeeds through `POST /api/v1/auth/login`.
-2. Protected API requests include `Authorization: Bearer <idToken>`.
-3. Creating donors/pickups writes Firestore documents.
-4. New city/sector/society values appear in `cities`, `sectors`, and `societies`.
-5. Payment recording creates `pickups/{pickupId}/payments` and updates pickup/partner totals.
-6. File uploads request a signed URL, upload directly to Storage, then store the returned URL/path in Firestore.
-7. `rg "mockData|schedulerData|USE_MOCK_DATA|../data" Frontend/src` returns no mock-data dependency.
-
-## 6. Deploy
-
-Build the frontend:
-
-```bash
-npm --prefix Frontend run build
-```
-
-Deploy from the repo root:
-
-```bash
-firebase deploy
-```
-
-Routing is configured in `firebase.json`:
-
-- `/api/**` goes to the `api` Cloud Function.
-- all other routes serve `Frontend/dist/index.html`.
-
-Firestore and Storage rules deny direct client SDK access. The React app must use the backend API for all reads/writes.
+Seed data (safe to re-run): `npm --prefix Backend run seed:master` (RST/SKS items),
+`npm --prefix Backend run seed:locations` (cities, sectors, societies).

@@ -1,3 +1,5 @@
+> **Note (Sept 2026):** the app now runs on Neon Postgres, its own email/password login (JWT), and Cloudinary instead of Firestore, Firebase Auth and Firebase Storage, deployed on Render. The React ↔ Express flow described below is unchanged; for the current data, auth and file setup see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 # Freepathshala Full-Stack Learning Guide
 
 This guide explains how this project works as a complete system. It is written  to understand how React, Express, Firebase Authentication, Firestore, and Storage work together.

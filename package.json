@@ -1,0 +1,15 @@
+{
+  "name": "donormgt",
+  "private": true,
+  "description": "FreePathshala donor & pickup manager: Express API (Backend/) serving the React app (Frontend/).",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm ci --prefix Backend --omit=dev && npm ci --prefix Frontend --include=dev && npm run build --prefix Frontend",
+    "migrate": "npm run migrate --prefix Backend",
+    "start": "npm start --prefix Backend",
+    "dev:api": "npm run dev --prefix Backend",
+    "dev:web": "npm run dev --prefix Frontend"
+  }
+}

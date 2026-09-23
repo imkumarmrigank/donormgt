@@ -1,13 +1,4 @@
-const { z, optionalString } = require("./common.validators");
-
-const signedUploadUrlSchema = z.object({
-  body: z.object({
-    fileName: z.string().min(1),
-    contentType: z.string().min(1),
-    purpose: z.enum(["aadhaar", "payment-proof", "sks-proof", "general"]).default("general"),
-    entityId: optionalString
-  })
-});
+const { z } = require("./common.validators");
 
 const signedReadUrlSchema = z.object({
   body: z.object({
@@ -16,6 +7,5 @@ const signedReadUrlSchema = z.object({
 });
 
 module.exports = {
-  signedUploadUrlSchema,
   signedReadUrlSchema
 };

@@ -1,3 +1,4 @@
+const path = require("path");
 require("dotenv").config();
 
 function list(value, fallback = []) {
@@ -18,16 +19,20 @@ const env = {
   port: number(process.env.PORT, 5001),
   apiPrefix: process.env.API_PREFIX || "/api/v1",
   corsOrigins: list(process.env.CORS_ORIGINS, ["http://localhost:5173"]),
-  firebaseProjectId: process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT,
-  firebaseStorageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  firebaseWebApiKey: process.env.FIREBASE_WEB_API_KEY,
-  firebaseServiceAccountBase64: process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
-  firebaseClientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  firebasePrivateKey: process.env.FIREBASE_PRIVATE_KEY,
-  functionRegion: process.env.FUNCTION_REGION || "asia-south1",
+  databaseUrl: process.env.DATABASE_URL || "",
+  databasePoolSize: number(process.env.DATABASE_POOL_SIZE, 10),
+  jwtSecret: process.env.JWT_SECRET || (nodeEnv === "production" ? "" : "dev-only-insecure-secret"),
+  accessTokenTtlSeconds: number(process.env.ACCESS_TOKEN_TTL_SECONDS, 3600),
+  refreshTokenTtlDays: number(process.env.REFRESH_TOKEN_TTL_DAYS, 30),
+  cloudinaryUrl: process.env.CLOUDINARY_URL || "",
+  cloudinaryFolder: process.env.CLOUDINARY_FOLDER || "donormgt",
   signedUrlTtlMinutes: number(process.env.SIGNED_URL_TTL_MINUTES, 15),
   maxUploadMb: number(process.env.MAX_UPLOAD_MB, 8),
-  adminSetupSecret: process.env.ADMIN_SETUP_SECRET || ""
+  adminSetupSecret: process.env.ADMIN_SETUP_SECRET || "",
+  bootstrapAdminEmail: process.env.ADMIN_EMAIL || "",
+  bootstrapAdminPassword: process.env.ADMIN_PASSWORD || "",
+  bootstrapAdminName: process.env.ADMIN_NAME || "Administrator",
+  frontendDist: path.resolve(process.env.FRONTEND_DIST || path.join(__dirname, "..", "..", "..", "Frontend", "dist"))
 };
 
 module.exports = { env };

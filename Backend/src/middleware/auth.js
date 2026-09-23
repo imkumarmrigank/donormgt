@@ -1,60 +1,51 @@
-const { auth, db } = require("../config/firebase");
+const { db } = require("../config/firebase");
 const { COLLECTIONS } = require("../config/collections");
 const { AppError } = require("../utils/AppError");
-const { logger } = require("../config/logger");
 const { cache } = require("../utils/cache");
+const accounts = require("../services/account.store");
+const tokens = require("../services/token.service");
 
 const AUTH_PROFILE_TTL_SECONDS = 60;
 
 /**
- * Middleware that verifies the Firebase ID token from the Authorization header
- * and attaches user info (uid, email, role, claims) to req.user.
- *
- * Role resolution order:
- *   1. Firestore users/{uid}.role, which matches /auth/me and the UI
- *   2. Custom claim `role` from the ID token as a fallback
+ * Verifies the Bearer access token and attaches { uid, email, name, role } to req.user.
+ * The role always comes from the users collection, so role changes apply within a minute.
  */
 async function requireAuth(req, _res, next) {
   try {
     const header = req.headers.authorization || "";
     const [, token] = header.match(/^Bearer\s+(.+)$/i) || [];
-
     if (!token) {
       throw new AppError("Missing Bearer token", 401, "UNAUTHENTICATED");
     }
 
-    // Keep verification fast for request-path auth checks.
-    // Token refresh on the client keeps sessions valid without per-request revocation calls.
-    const decoded = await auth.verifyIdToken(token);
+    const decoded = tokens.verify(token, "access");
 
-    // ── Resolve role ─────────────────────────────────────────
-    const tokenRole = String(decoded.role || decoded.roles?.[0] || "").toLowerCase();
-    let role = tokenRole;
+    const state = await cache.getOrFetch(`auth:user:${decoded.uid}`, async () => {
+      const [account, userDoc] = await Promise.all([
+        accounts.findByUid(decoded.uid),
+        db.collection(COLLECTIONS.USERS).doc(decoded.uid).get()
+      ]);
+      return {
+        account: account ? { disabled: account.disabled, tokenVersion: account.token_version } : null,
+        profile: userDoc.exists ? userDoc.data() : null
+      };
+    }, AUTH_PROFILE_TTL_SECONDS);
 
-    try {
-      const profile = await cache.getOrFetch(`auth:user:${decoded.uid}`, async () => {
-        const userDoc = await db.collection(COLLECTIONS.USERS).doc(decoded.uid).get();
-        return userDoc.exists ? userDoc.data() : null;
-      }, AUTH_PROFILE_TTL_SECONDS);
-      if (profile) {
-        if (profile.active === false) {
-          throw new AppError("This user account is disabled", 403, "USER_DISABLED");
-        }
-        role = String(profile.role || tokenRole || "").toLowerCase();
-      }
-    } catch (dbErr) {
-      if (dbErr instanceof AppError) throw dbErr;
-      logger.warn("Failed to fetch user role from Firestore", { uid: decoded.uid, error: dbErr.message });
+    if (!state.account || state.account.tokenVersion !== decoded.tv) {
+      throw new AppError("Session expired, please login again", 401, "UNAUTHENTICATED");
+    }
+    if (state.account.disabled || state.profile?.active === false) {
+      throw new AppError("This user account is disabled", 403, "USER_DISABLED");
     }
 
     req.user = {
       uid: decoded.uid,
       email: decoded.email,
-      name: decoded.name,
-      role,
+      name: state.profile?.name || decoded.name,
+      role: String(state.profile?.role || decoded.role || "").toLowerCase(),
       claims: decoded
     };
-
     next();
   } catch (error) {
     next(error instanceof AppError
