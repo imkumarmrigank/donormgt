@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+!.env.example
+firebase-service-account*.json
+service-account*.json
+*.pem
+*.key
+*.crt
+logs/
+*.log
+coverage/
+.firebase/
+firebase-debug.log
+.DS_Store
+Thumbs.db

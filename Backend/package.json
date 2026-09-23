@@ -1,0 +1,36 @@
+{
+  "name": "freepathshala-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node.js, Express.js, and Firebase backend for FreePathshala.",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "check": "node scripts/check-syntax.js",
+    "setup:admin": "node scripts/setup-first-admin.js",
+    "verify:auth": "node scripts/verify-auth-setup.js",
+    "seed:locations": "node scripts/seed-locations.js",
+    "seed:master": "node scripts/seed-master-data.js",
+    "migrate:production-schema": "node scripts/migrate-production-schema.js",
+    "serve:functions": "firebase emulators:start --only functions,firestore,storage,hosting",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:rules": "firebase deploy --only firestore:rules,storage",
+    "deploy": "firebase deploy"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.2.0",
+    "helmet": "^8.0.0",
+    "morgan": "^1.10.0",
+    "multer": "^2.1.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {}
+}

@@ -1,0 +1,106 @@
+.scheduler-ui .scheduler-hero-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.scheduler-ui .scheduler-input,
+.scheduler-ui .scheduler-select,
+.scheduler-ui .scheduler-textarea {
+  width: 100% !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 22px !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  font-size: 0.95rem !important;
+  line-height: 1.5 !important;
+  font-family: inherit !important;
+  box-shadow: none !important;
+}
+
+.scheduler-ui .scheduler-input,
+.scheduler-ui .scheduler-select {
+  min-height: 3.25rem;
+  padding: 0.875rem 1rem !important;
+}
+
+.scheduler-ui .scheduler-input.scheduler-input-icon {
+  padding-left: 2.75rem !important;
+  padding-right: 2.75rem !important;
+}
+
+.scheduler-ui .scheduler-textarea {
+  min-height: 7rem;
+  padding: 0.875rem 1rem !important;
+  resize: vertical;
+}
+
+.scheduler-ui .scheduler-input:focus,
+.scheduler-ui .scheduler-select:focus,
+.scheduler-ui .scheduler-textarea:focus {
+  border-color: #fb923c !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 4px rgba(251, 146, 60, 0.14) !important;
+  outline: none !important;
+}
+
+.scheduler-ui .scheduler-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 0.75rem 1rem;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.18s ease;
+}
+
+.scheduler-ui .scheduler-secondary-button:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.scheduler-ui .scheduler-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  border: 0;
+  border-radius: 18px;
+  background: #0f172a;
+  padding: 0.75rem 1.25rem;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition: all 0.18s ease;
+}
+
+.scheduler-ui .scheduler-primary-button:hover {
+  background: #1e293b;
+}
+
+.scheduler-ui .scheduler-primary-button:disabled,
+.scheduler-ui .scheduler-secondary-button:disabled {
+  cursor: not-allPending;
+  opacity: 0.6;
+}
+
+.scheduler-ui .scheduler-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+@media (min-width: 1024px) {
+  .scheduler-ui .scheduler-hero-grid {
+    grid-template-columns: minmax(0, 1.3fr) auto;
+    align-items: end;
+  }
+}
