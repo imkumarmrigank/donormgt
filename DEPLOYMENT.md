@@ -80,3 +80,14 @@ Seed data (safe to re-run): `npm --prefix Backend run seed:master` (RST/SKS item
   outcome list there: photo required or not, and an optional pickup status the outcome sets
   (Pending / Postponed / Did Not Open Door). Completing a pickup still goes through Record Pickup.
 - Browsers only share GPS over HTTPS (fine on the live site; `localhost` also works).
+- **Trip flow:** rider taps **Accept pickup** → **Start** (start time and position saved) → in-app
+  map with live position, road route and distance → **Mark pickup** (the visit above). Visits
+  can only be recorded after Start. Reassigning a pickup to another rider clears the trip.
+- **Live location:** while a rider has an accepted pickup not yet visited, the rider app sends
+  its position at most every 30 s or 40 m (`POST /rider/location`, latest kept per rider in
+  `riderLocations`). **Live Riders** and the Dashboard panel (`GET /visits/live`) show riders,
+  their active pickups and today's counts by stage. Browsers only send location while the app
+  is open on screen, so a rider shows "last seen N min ago" once they lock the phone.
+- Maps use OpenStreetMap tiles; road routes come from the public OSRM server
+  (router.project-osrm.org, demo service) with a straight-line fallback. For heavy use, switch
+  to a hosted routing service. Riders also get a Google Maps button for voice navigation.

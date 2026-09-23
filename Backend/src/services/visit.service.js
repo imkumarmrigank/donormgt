@@ -33,6 +33,10 @@ const OUTCOME_PICKUP_STATUSES = ["Pending", "Postponed", "Did Not Open Door"];
 const pickups = () => db.collection(COLLECTIONS.PICKUPS);
 const visits = () => db.collection(COLLECTIONS.PICKUP_VISITS);
 const outcomes = () => db.collection(COLLECTIONS.VISIT_OUTCOMES);
+const riderLocations = () => db.collection(COLLECTIONS.RIDER_LOCATIONS);
+
+// A rider counts as "live" on the admin map while their last ping is this recent.
+const LIVE_WINDOW_MINUTES = 30;
 
 function todayInIndia() {
   return new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
@@ -139,8 +143,12 @@ async function updateOutcome(id, data, actor) {
  * Normalises the rider and location fields of a pickup create/update body in place:
  * checks the rider is an active rider and snapshots their name, validates the pin.
  */
-async function prepareAssignment(body, actor) {
+async function prepareAssignment(body, actor, existingPickupId = null) {
   if (Object.prototype.hasOwnProperty.call(body, "riderId")) {
+    if (existingPickupId) {
+      const existing = fromDoc(await pickups().doc(existingPickupId).get());
+      if (existing && (existing.riderId || null) !== (body.riderId || null)) body.riderTrip = null;
+    }
     if (!body.riderId) {
       body.riderId = null;
       body.riderName = null;
@@ -169,7 +177,7 @@ async function rememberDonorGeo(donorId, geo) {
 const RIDER_PICKUP_FIELDS = [
   "id", "orderId", "date", "timeSlot", "status", "pickupMode", "notes",
   "donorId", "donorName", "mobile", "house", "houseNo", "society", "sector", "city",
-  "geo", "lastVisit", "visitCount"
+  "geo", "lastVisit", "visitCount", "riderTrip"
 ];
 
 function riderView(pickup) {
@@ -195,6 +203,44 @@ async function listRiderPickups(rider) {
   };
 }
 
+async function assignedPickup(rider, pickupId) {
+  const ref = pickups().doc(pickupId);
+  const pickup = fromDoc(await ref.get());
+  if (!pickup || pickup.riderId !== rider.uid) {
+    throw new AppError("This pickup is not assigned to you", 404, "PICKUP_NOT_FOUND");
+  }
+  if (pickup.status === "Completed") {
+    throw new AppError("This pickup is already completed", 409, "PICKUP_ALREADY_COMPLETED");
+  }
+  return { ref, pickup };
+}
+
+/** Rider accepts the job. Idempotent. */
+async function acceptPickup(rider, pickupId) {
+  const { ref, pickup } = await assignedPickup(rider, pickupId);
+  if (pickup.riderTrip?.acceptedAt) return riderView(pickup);
+  const riderTrip = { ...(pickup.riderTrip || {}), acceptedAt: new Date().toISOString() };
+  await ref.set({ riderTrip, ...auditUpdate(rider) }, { merge: true });
+  forgetActiveTrips(rider.uid);
+  return riderView({ ...pickup, riderTrip });
+}
+
+/** Rider sets off for the pickup; the start position is kept when the phone gives one. */
+async function startTrip(rider, pickupId, { position } = {}) {
+  const { ref, pickup } = await assignedPickup(rider, pickupId);
+  if (!pickup.riderTrip?.acceptedAt) {
+    throw new AppError("Accept the pickup before starting", 409, "NOT_ACCEPTED");
+  }
+  if (pickup.riderTrip?.startedAt) return riderView(pickup);
+  const riderTrip = cleanUndefined({
+    ...pickup.riderTrip,
+    startedAt: new Date().toISOString(),
+    startPosition: position ? normalizeGeo(position, { source: "rider-gps", actor: rider }) : undefined
+  });
+  await ref.set({ riderTrip, ...auditUpdate(rider) }, { merge: true });
+  return riderView({ ...pickup, riderTrip });
+}
+
 function validatePhotos(photos, pickupId) {
   if (!Array.isArray(photos)) return [];
   // Photos must be ones uploaded for this pickup through /uploads (purpose "pickup-visit").
@@ -208,13 +254,9 @@ function validatePhotos(photos, pickupId) {
 }
 
 async function recordVisit(rider, pickupId, data) {
-  const pickupRef = pickups().doc(pickupId);
-  const pickup = fromDoc(await pickupRef.get());
-  if (!pickup || pickup.riderId !== rider.uid) {
-    throw new AppError("This pickup is not assigned to you", 404, "PICKUP_NOT_FOUND");
-  }
-  if (pickup.status === "Completed") {
-    throw new AppError("This pickup is already completed", 409, "PICKUP_ALREADY_COMPLETED");
+  const { ref: pickupRef, pickup } = await assignedPickup(rider, pickupId);
+  if (!pickup.riderTrip?.startedAt) {
+    throw new AppError("Accept and start the pickup before recording a visit", 409, "NOT_STARTED");
   }
 
   const outcome = (await listOutcomes()).find((row) => row.id === data.outcomeId);
@@ -267,6 +309,9 @@ async function recordVisit(rider, pickupId, data) {
     flags,
     farReason: farReason || null,
     photos,
+    acceptedAt: pickup.riderTrip.acceptedAt,
+    startedAt: pickup.riderTrip.startedAt,
+    startPosition: pickup.riderTrip.startPosition || null,
     notes: String(data.notes || "").trim(),
     date: todayInIndia(),
     ...auditCreate(rider)
@@ -293,8 +338,116 @@ async function recordVisit(rider, pickupId, data) {
     ...auditUpdate(rider)
   }), { merge: true });
   await batch.commit();
+  forgetActiveTrips(rider.uid);
 
   return { visit, pickup: riderView({ ...pickup, lastVisit, visitCount: (pickup.visitCount || 0) + 1, ...(outcome.pickupStatus ? { status: outcome.pickupStatus } : {}) }) };
+}
+
+// ── Live rider locations ─────────────────────────────────────────────────────
+
+/** Accepted, not completed, and no visit recorded since it was accepted. */
+function isActiveTrip(pickup) {
+  const acceptedAt = pickup.riderTrip?.acceptedAt;
+  if (!acceptedAt || pickup.status === "Completed") return false;
+  return !pickup.lastVisit?.at || pickup.lastVisit.at < acceptedAt;
+}
+
+function activeTripSummary(pickup) {
+  return cleanUndefined({
+    pickupId: pickup.id,
+    orderId: pickup.orderId || pickup.id,
+    donorName: pickup.donorName || "",
+    address: [pickup.house || pickup.houseNo, pickup.society, pickup.sector, pickup.city].filter(Boolean).join(", "),
+    date: pickup.date,
+    timeSlot: pickup.timeSlot || "",
+    geo: pickup.geo || null,
+    stage: pickup.riderTrip?.startedAt ? "started" : "accepted",
+    acceptedAt: pickup.riderTrip?.acceptedAt,
+    startedAt: pickup.riderTrip?.startedAt
+  });
+}
+
+async function activeTripsForRider(riderUid) {
+  return cache.getOrFetch(`rider:active:${riderUid}`, async () => {
+    const snapshot = await pickups()
+      .where("riderId", "==", riderUid)
+      .where("date", ">=", shiftDate(todayInIndia(), -7))
+      .get();
+    return fromSnapshot(snapshot).filter(isActiveTrip).map(activeTripSummary);
+  }, 60);
+}
+
+function forgetActiveTrips(riderUid) {
+  cache.invalidate(`rider:active:${riderUid}`);
+}
+
+/**
+ * The rider app sends its position while the rider has an accepted pickup open.
+ * Only the latest position is kept (one document per rider).
+ */
+async function recordRiderPing(rider, { position }) {
+  const trips = await activeTripsForRider(rider.uid);
+  if (!trips.length) return { tracking: false };
+  const point = normalizeGeo(position, { source: "rider-gps", actor: rider });
+  if (!point) throw new AppError("A position is required", 422, "LOCATION_REQUIRED");
+  await riderLocations().doc(rider.uid).set({
+    riderId: rider.uid,
+    riderName: rider.name || rider.email,
+    position: point,
+    heading: Number.isFinite(Number(position.heading)) ? Number(position.heading) : null,
+    speed: Number.isFinite(Number(position.speed)) ? Number(position.speed) : null,
+    updatedAt: new Date().toISOString()
+  });
+  return { tracking: true };
+}
+
+/** Admin map: riders with an active trip and a recent ping, plus their pickups. */
+async function listLiveRiders() {
+  const since = new Date(Date.now() - LIVE_WINDOW_MINUTES * 60000).toISOString();
+  const [locationsSnap, pickupsSnap] = await Promise.all([
+    riderLocations().where("updatedAt", ">=", since).get(),
+    pickups().where("date", ">=", shiftDate(todayInIndia(), -7)).get()
+  ]);
+  const tripsByRider = {};
+  fromSnapshot(pickupsSnap)
+    .filter((pickup) => pickup.riderId && isActiveTrip(pickup))
+    .forEach((pickup) => {
+      (tripsByRider[pickup.riderId] ||= { riderName: pickup.riderName, trips: [] }).trips.push(activeTripSummary(pickup));
+    });
+
+  const locations = Object.fromEntries(fromSnapshot(locationsSnap).map((row) => [row.riderId, row]));
+  const riderIds = new Set([...Object.keys(tripsByRider), ...Object.keys(locations)]);
+  const riders = [...riderIds]
+    .filter((id) => tripsByRider[id]) // show riders only while they have an accepted pickup
+    .map((id) => ({
+      riderId: id,
+      riderName: locations[id]?.riderName || tripsByRider[id].riderName || "Rider",
+      position: locations[id]?.position || null,
+      heading: locations[id]?.heading ?? null,
+      speed: locations[id]?.speed ?? null,
+      lastSeenAt: locations[id]?.updatedAt || null,
+      trips: tripsByRider[id].trips.sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    }))
+    .sort((a, b) => a.riderName.localeCompare(b.riderName));
+
+  // Today's rider-assigned pickups by stage, for the dashboard.
+  const today = todayInIndia();
+  const todays = fromSnapshot(pickupsSnap).filter((pickup) => pickup.riderId && pickup.date === today);
+  const stageOf = (pickup) => {
+    if (pickup.status === "Completed") return "completed";
+    if (pickup.lastVisit?.at && (!pickup.riderTrip?.acceptedAt || pickup.lastVisit.at >= pickup.riderTrip.acceptedAt)) return "visited";
+    if (pickup.riderTrip?.startedAt) return "started";
+    if (pickup.riderTrip?.acceptedAt) return "accepted";
+    return "assigned";
+  };
+  const summary = { assigned: 0, accepted: 0, started: 0, visited: 0, completed: 0, flagged: 0, total: todays.length };
+  todays.forEach((pickup) => {
+    summary[stageOf(pickup)] += 1;
+    if (pickup.lastVisit && pickup.lastVisit.verified === false && String(pickup.lastVisit.at || "").slice(0, 10) >= shiftDate(today, -1)) summary.flagged += 1;
+  });
+  summary.liveRiders = riders.filter((rider) => rider.lastSeenAt).length;
+
+  return { liveWindowMinutes: LIVE_WINDOW_MINUTES, generatedAt: new Date().toISOString(), today, summary, riders };
 }
 
 // ── Admin review ─────────────────────────────────────────────────────────────
@@ -321,6 +474,10 @@ module.exports = {
   prepareAssignment,
   rememberDonorGeo,
   listRiderPickups,
+  acceptPickup,
+  startTrip,
+  recordRiderPing,
+  listLiveRiders,
   recordVisit,
   listVisits
 };

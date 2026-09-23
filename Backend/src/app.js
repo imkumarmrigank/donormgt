@@ -21,7 +21,9 @@ app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
-      "img-src": ["'self'", "data:", "blob:", "https://res.cloudinary.com", "https://cdn-icons-png.flaticon.com"],
+      "img-src": ["'self'", "data:", "blob:", "https://res.cloudinary.com", "https://cdn-icons-png.flaticon.com", "https://tile.openstreetmap.org"],
+      // Road routes for the rider map (OSRM public server)
+      "connect-src": ["'self'", "https://router.project-osrm.org"],
       "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
       "frame-src": ["'self'", "https://res.cloudinary.com"],

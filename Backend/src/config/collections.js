@@ -16,7 +16,8 @@ const COLLECTIONS = {
   COUNTERS: "counters",
   SYSTEM_CONFIG: "systemConfig",
   PICKUP_VISITS: "pickupVisits",
-  VISIT_OUTCOMES: "visitOutcomes"
+  VISIT_OUTCOMES: "visitOutcomes",
+  RIDER_LOCATIONS: "riderLocations"
 };
 
 module.exports = { COLLECTIONS };

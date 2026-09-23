@@ -29,6 +29,7 @@ const ROUTE_PERMISSIONS = {
   '/sks-overview':     ['admin', 'manager', 'executive'],
   '/today-pickups':    ['admin', 'manager', 'executive'],
   '/rider-visits':     ['admin', 'manager'],
+  '/live-riders':      ['admin', 'manager'],
   '/rider':            ['rider'],
 }
 

@@ -26,7 +26,7 @@ const create = asyncHandler(async (req, res) => {
 });
 
 const update = asyncHandler(async (req, res) => {
-  await visitService.prepareAssignment(req.body, req.user);
+  await visitService.prepareAssignment(req.body, req.user, req.params.id);
   const data = await pickupService.updatePickup(req.params.id, req.body, req.user);
   await visitService.rememberDonorGeo(data.donorId, req.body.geo);
   sendSuccess(res, data, "Pickup updated");

@@ -440,6 +440,13 @@ export const fetchSchedulerSummary = options => apiFetch('/dashboard/scheduler',
 // Riders & visits
 export const fetchRiderPickups = options => apiFetch('/rider/pickups', { cacheTtl: 0, ...options })
 export const fetchRiderOutcomes = options => apiFetch('/rider/outcomes', options)
+export const acceptRiderPickup = pickupId =>
+  apiFetch(`/rider/pickups/${pickupId}/accept`, { method: 'POST', body: '{}', retry: 0 })
+export const startRiderTrip = (pickupId, position) =>
+  apiFetch(`/rider/pickups/${pickupId}/start`, { method: 'POST', body: JSON.stringify(position ? { position } : {}), retry: 0 })
+export const sendRiderLocation = position =>
+  apiFetch('/rider/location', { method: 'POST', body: JSON.stringify({ position }), retry: 0, timeoutMs: 10_000 })
+export const fetchLiveRiders = options => apiFetch('/visits/live', { cacheTtl: 0, force: true, ...options })
 export const recordRiderVisit = (pickupId, data) =>
   apiFetch(`/rider/pickups/${pickupId}/visits`, { method: 'POST', body: JSON.stringify(data), retry: 0 })
 export const fetchVisits = (params, options) => apiFetch(`/visits${toQuery(params)}`, { cacheTtl: 0, ...options })

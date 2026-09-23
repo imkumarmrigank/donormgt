@@ -13,6 +13,7 @@ const PAGE_META = {
   raddimaster:     { title: 'Raddi Master',           sub: 'Complete pickup data - all orders in one view' },
   sksoverview:     { title: 'SKS Stock',              sub: 'Warehouse tracking for donated goods' },
   riderpickups:    { title: 'My Pickups',             sub: 'Mark each visit from the pickup location' },
+  liveriders:      { title: 'Live Riders',            sub: 'Where riders are and which pickups they are on' },
   ridervisits:     { title: 'Rider Visits',           sub: 'Location-checked visits and outcomes' },
   usermanagement:  { title: 'User Management',        sub: 'Logins and roles' },
 }

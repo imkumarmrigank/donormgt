@@ -55,6 +55,7 @@ import SKSOverview     from './pages/SKSOverview'
 import UserManagement  from './pages/UserManagement'
 import RiderPickups    from './pages/RiderPickups'
 import RiderVisits     from './pages/RiderVisits'
+import LiveRiders      from './pages/LiveRiders'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Page-ID ↔ URL path mappings
@@ -75,6 +76,7 @@ const PAGE_TO_PATH = {
   usermanagement:  '/user-management',
   riderpickups:    '/rider',
   ridervisits:     '/rider-visits',
+  liveriders:      '/live-riders',
 }
 
 /** Reverse map: URL path → page ID (used to set the sidebar active item) */
@@ -369,6 +371,10 @@ function AppRoutes() {
         <Route
           path="/pickup-overview"
           element={<Guard roles={ADMIN_MANAGER}><PickupOverviewPage /></Guard>}
+        />
+        <Route
+          path="/live-riders"
+          element={<Guard roles={ADMIN_MANAGER}><LiveRiders /></Guard>}
         />
         <Route
           path="/rider-visits"

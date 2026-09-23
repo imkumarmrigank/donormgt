@@ -2,7 +2,7 @@
 import {
   LayoutDashboard, Users, Truck, UserCheck, BarChart3,
   IndianRupee, CalendarDays, Table2, Eye, Shirt, ClipboardList,
-  Heart, Database, Shield, MapPinned,
+  Heart, Database, Shield, MapPinned, Radar,
 } from 'lucide-react'
 import { useRole } from '../../context/RoleContext'
 
@@ -54,7 +54,13 @@ const buildNav = (role) => {
       : []
     ),
     { id: 'todaypickups',    label: "Today's Pickups",  icon: ClipboardList },
-    { id: 'ridervisits',     label: 'Rider Visits',     icon: MapPinned },
+    ...(isAdmin || isManager
+      ? [
+        { id: 'liveriders',  label: 'Live Riders',  icon: Radar },
+        { id: 'ridervisits', label: 'Rider Visits', icon: MapPinned },
+      ]
+      : []
+    ),
 
     { section: 'Warehouse' },
     ...(isAdmin || isManager

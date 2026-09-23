@@ -14,6 +14,7 @@ import {
 } from 'recharts'
 import { useApp } from '../context/AppContext'
 import { fmtCurrency } from '../utils/helpers'
+import RiderStatusPanel from '../components/RiderStatusPanel'
 
 const RST_PIE_COLORS  = ['#E8521A','#1B5E35','#F5B942','#3B82F6','#8B5CF6','#EC4899','#14B8A6','#F97316','#84CC16','#EF4444']
 const SKS_PIE_COLORS  = ['#3B82F6','#8B5CF6','#F5B942','#1B5E35','#EC4899','#14B8A6','#F97316','#E8521A','#84CC16','#06B6D4','#A78BFA','#FB923C','#4ADE80','#F472B6']
@@ -362,7 +363,7 @@ function ChartSkeleton({ height = 180 }) {
 // ════════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD — all data fetched from backend, filters sent as query params
 // ════════════════════════════════════════════════════════════════════════════
-export default function Dashboard() {
+export default function Dashboard({ onNav }) {
   const {
     donors,
     PickupPartners,
@@ -572,6 +573,11 @@ export default function Dashboard() {
             </div>
           )
         })}
+      </div>
+
+      {/* Riders: today's pickups by stage and live positions */}
+      <div style={{ marginBottom: 24 }}>
+        <RiderStatusPanel compact onOpenFull={() => onNav?.('liveriders')} />
       </div>
 
       {/* ══════════════════════════════════════════════

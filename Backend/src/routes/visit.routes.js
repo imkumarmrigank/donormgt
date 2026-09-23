@@ -33,6 +33,10 @@ router.get("/", requireRoles(ROLES.ADMIN, ROLES.MANAGER), validate(listSchema), 
   sendSuccess(res, await visitService.listVisits(req.query), "Rider visits");
 }));
 
+router.get("/live", requireRoles(ROLES.ADMIN, ROLES.MANAGER), asyncHandler(async (_req, res) => {
+  sendSuccess(res, await visitService.listLiveRiders(), "Live riders");
+}));
+
 router.get("/outcomes", requireRoles(ROLES.ADMIN, ROLES.MANAGER), asyncHandler(async (_req, res) => {
   sendSuccess(res, await visitService.listOutcomes({ includeInactive: true }), "Visit outcomes");
 }));

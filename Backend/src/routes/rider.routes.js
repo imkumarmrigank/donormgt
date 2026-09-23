@@ -36,6 +36,33 @@ router.get("/outcomes", asyncHandler(async (_req, res) => {
   sendSuccess(res, await visitService.listOutcomes(), "Visit outcomes");
 }));
 
+const idOnly = z.object({ params: z.object({ id: z.string().min(1) }) });
+const startSchema = z.object({
+  params: z.object({ id: z.string().min(1) }),
+  body: z.object({ position: position.optional() }).default({})
+});
+
+router.post("/pickups/:id/accept", validate(idOnly), asyncHandler(async (req, res) => {
+  sendSuccess(res, await visitService.acceptPickup(req.user, req.params.id), "Pickup accepted");
+}));
+
+router.post("/pickups/:id/start", validate(startSchema), asyncHandler(async (req, res) => {
+  sendSuccess(res, await visitService.startTrip(req.user, req.params.id, req.body), "Trip started");
+}));
+
+const pingSchema = z.object({
+  body: z.object({
+    position: position.extend({
+      heading: z.coerce.number().nullable().optional(),
+      speed: z.coerce.number().nullable().optional()
+    })
+  })
+});
+
+router.post("/location", validate(pingSchema), asyncHandler(async (req, res) => {
+  sendSuccess(res, await visitService.recordRiderPing(req.user, req.body), "Location received");
+}));
+
 router.post("/pickups/:id/visits", validate(recordVisitSchema), asyncHandler(async (req, res) => {
   sendSuccess(res, await visitService.recordVisit(req.user, req.params.id, req.body), "Visit recorded", 201);
 }));

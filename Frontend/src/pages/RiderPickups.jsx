@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Camera, CheckCircle2, Clock, Crosshair, MapPin, Navigation, Phone,
-  RefreshCw, AlertTriangle, X, ImagePlus,
+  RefreshCw, AlertTriangle, X, ImagePlus, Play, Map as MapIcon, ThumbsUp,
 } from 'lucide-react'
+import RiderMap from '../components/RiderMap'
+import useRiderLocationSharing from '../hooks/useRiderLocationSharing'
 import * as api from '../services/api'
 import { fmtDate } from '../utils/helpers'
-import { directionsLink, distanceMeters, formatDistance, getCurrentPosition } from '../utils/geo'
+import { distanceMeters, formatDistance, getCurrentPosition } from '../utils/geo'
 
 const MAX_PHOTO_EDGE = 1600
 
@@ -44,10 +46,20 @@ function VisitBadge({ visit }) {
   )
 }
 
-function PickupCard({ pickup, onVisit }) {
+function tripStage(pickup) {
+  if (pickup.status === 'Completed') return 'closed'
+  if (pickup.riderTrip?.startedAt) return 'started'
+  if (pickup.riderTrip?.acceptedAt) return 'accepted'
+  return 'assigned'
+}
+
+function timeOf(iso) {
+  return iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) : ''
+}
+
+function PickupCard({ pickup, busy, onAccept, onStart, onMap, onVisit }) {
   const addr = address(pickup)
-  const directions = directionsLink(pickup.geo, addr)
-  const closed = pickup.status === 'Completed'
+  const stage = tripStage(pickup)
   return (
     <div className="card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
@@ -66,21 +78,42 @@ function PickupCard({ pickup, onVisit }) {
         </span>
         {pickup.status && pickup.status !== 'Pending' && <span className="badge badge-muted">{pickup.status}</span>}
         {!pickup.geo && <span className="badge badge-warning">No pin</span>}
+        {stage === 'accepted' && <span className="badge badge-primary">Accepted {timeOf(pickup.riderTrip.acceptedAt)}</span>}
+        {stage === 'started' && <span className="badge badge-primary">On the way since {timeOf(pickup.riderTrip.startedAt)}</span>}
         <VisitBadge visit={pickup.lastVisit} />
       </div>
 
       {pickup.notes && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>“{pickup.notes}”</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr', gap: 8, marginTop: 2 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: stage === 'started' ? '1fr 1.2fr 1.3fr' : '1fr 2fr', gap: 8, marginTop: 2 }}>
         <a className="btn btn-outline btn-sm" style={{ justifyContent: 'center' }} href={pickup.mobile ? `tel:${pickup.mobile}` : undefined} aria-disabled={!pickup.mobile}>
           <Phone size={14} /> Call
         </a>
-        <a className="btn btn-outline btn-sm" style={{ justifyContent: 'center' }} href={directions || undefined} target="_blank" rel="noreferrer" aria-disabled={!directions}>
-          <Navigation size={14} /> Directions
-        </a>
-        <button className="btn btn-primary btn-sm" style={{ justifyContent: 'center' }} onClick={() => onVisit(pickup)} disabled={closed}>
-          <Crosshair size={14} /> {closed ? 'Completed' : 'Record visit'}
-        </button>
+        {stage === 'assigned' && (
+          <button className="btn btn-primary btn-sm" style={{ justifyContent: 'center' }} onClick={() => onAccept(pickup)} disabled={busy}>
+            <ThumbsUp size={14} /> {busy ? 'Accepting…' : 'Accept pickup'}
+          </button>
+        )}
+        {stage === 'accepted' && (
+          <button className="btn btn-primary btn-sm" style={{ justifyContent: 'center' }} onClick={() => onStart(pickup)} disabled={busy}>
+            <Play size={14} /> {busy ? 'Starting…' : 'Start'}
+          </button>
+        )}
+        {stage === 'started' && (
+          <>
+            <button className="btn btn-outline btn-sm" style={{ justifyContent: 'center' }} onClick={() => onMap(pickup)}>
+              <MapIcon size={14} /> Map
+            </button>
+            <button className="btn btn-primary btn-sm" style={{ justifyContent: 'center' }} onClick={() => onVisit(pickup)}>
+              <Crosshair size={14} /> Mark pickup
+            </button>
+          </>
+        )}
+        {stage === 'closed' && (
+          <button className="btn btn-outline btn-sm" style={{ justifyContent: 'center' }} disabled>
+            <CheckCircle2 size={14} /> Completed
+          </button>
+        )}
       </div>
     </div>
   )
@@ -269,7 +302,39 @@ export default function RiderPickups() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [active, setActive] = useState(null)
+  const [mapPickup, setMapPickup] = useState(null)
+  const [busyId, setBusyId] = useState(null)
   const [toast, setToast] = useState('')
+
+  const replacePickup = (updated) => {
+    setData(d => ({ ...d, pickups: d.pickups.map(p => (p.id === updated.id ? { ...p, ...updated } : p)) }))
+  }
+
+  const accept = async (pickup) => {
+    setBusyId(pickup.id); setError('')
+    try {
+      replacePickup(await api.acceptRiderPickup(pickup.id))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const start = async (pickup) => {
+    setBusyId(pickup.id); setError('')
+    try {
+      // The start point is kept when the phone gives it quickly; the trip starts either way.
+      const position = await getCurrentPosition({ timeoutMs: 8000 }).catch(() => null)
+      const updated = await api.startRiderTrip(pickup.id, position)
+      replacePickup(updated)
+      setMapPickup({ ...pickup, ...updated })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -300,9 +365,17 @@ export default function RiderPickups() {
     ].filter(g => g.items.length)
   }, [data])
 
+  // Same rule as the server: accepted, not completed, no visit since accepting.
+  const hasActiveTrip = useMemo(() => (data?.pickups || []).some(p =>
+    p.riderTrip?.acceptedAt && p.status !== 'Completed' &&
+    (!p.lastVisit?.at || p.lastVisit.at < p.riderTrip.acceptedAt)
+  ), [data])
+  const sharing = useRiderLocationSharing(hasActiveTrip)
+
   const onSaved = ({ pickup, visit }) => {
     setData(d => ({ ...d, pickups: d.pickups.map(p => (p.id === pickup.id ? { ...p, ...pickup } : p)) }))
     setActive(null)
+    setMapPickup(null)
     setToast(visit.verified ? `Saved: ${visit.outcomeLabel} ✓ at location` : `Saved: ${visit.outcomeLabel} (flagged for the office)`)
     setTimeout(() => setToast(''), 4000)
   }
@@ -316,6 +389,14 @@ export default function RiderPickups() {
         <button className="btn btn-ghost btn-sm" onClick={load} disabled={loading}><RefreshCw size={14} /> Refresh</button>
       </div>
 
+      {hasActiveTrip && (
+        <div className={`alert-strip ${sharing.error ? 'alert-warning' : 'alert-info'}`} style={{ marginBottom: 12, fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 4, background: sharing.sharing && !sharing.error ? '#22c55e' : '#f59e0b', flexShrink: 0 }} />
+          {sharing.error
+            ? `Live location paused: ${sharing.error}.`
+            : 'Your live location is shared with the office while a pickup is accepted. Keep this app open.'}
+        </div>
+      )}
       {toast && <div className="alert-strip alert-success" style={{ marginBottom: 12 }}>{toast}</div>}
       {error && <div className="alert-strip alert-danger" style={{ marginBottom: 12 }}>{error}</div>}
       {loading && !data && <div className="empty-state">Loading your pickups…</div>}
@@ -333,10 +414,22 @@ export default function RiderPickups() {
             {group.title} · {group.items.length}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {group.items.map(p => <PickupCard key={p.id} pickup={p} onVisit={setActive} />)}
+            {group.items.map(p => (
+              <PickupCard key={p.id} pickup={p} busy={busyId === p.id}
+                onAccept={accept} onStart={start} onMap={setMapPickup} onVisit={setActive} />
+            ))}
           </div>
         </div>
       ))}
+
+      {mapPickup && !active && (
+        <RiderMap
+          pickup={mapPickup}
+          maxDistance={data?.maxDistanceMeters || 100}
+          onClose={() => setMapPickup(null)}
+          onMark={() => setActive(mapPickup)}
+        />
+      )}
 
       {active && (
         <VisitSheet
