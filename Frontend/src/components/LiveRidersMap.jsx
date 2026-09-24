@@ -38,7 +38,12 @@ export default function LiveRidersMap({ riders = [], height = 420, focusRiderId 
 
   useEffect(() => {
     const map = L.map(containerRef.current, { zoomControl: true })
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap',
+      // OSM's tile policy requires a Referer; keep sending our origin even if the page policy changes.
+      referrerPolicy: 'strict-origin-when-cross-origin',
+    }).addTo(map)
     map.setView([28.5355, 77.2], 10) // Delhi NCR until riders load
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map

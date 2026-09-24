@@ -65,6 +65,8 @@ export default function RiderMap({ pickup, maxDistance, onClose, onMark }) {
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap',
+      // OSM's tile policy requires a Referer; keep sending our origin even if the page policy changes.
+      referrerPolicy: 'strict-origin-when-cross-origin',
     }).addTo(map)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     if (target) {

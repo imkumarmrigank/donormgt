@@ -30,7 +30,10 @@ app.use(helmet({
       "object-src": ["'self'", "https://res.cloudinary.com"]
     }
   },
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  // OpenStreetMap refuses map tiles to browsers that send no Referer (helmet's
+  // default is "no-referrer"); share only our origin with other sites.
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" }
 }));
 // Render terminates TLS in front of the app; trust it so req.ip is the client's.
 app.set("trust proxy", 1);
